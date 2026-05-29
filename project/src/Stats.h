@@ -51,9 +51,8 @@ class Stats {
                 constexpr unsigned TOP_LIST_SIZE = 10;
 
                 if (biggest_files.size() == TOP_LIST_SIZE) {
-                        const auto last_it = biggest_files.cend() - 1;
 
-                        if (last_it->second > size) {
+                        if (biggest_files.back().second > size) {
                                 // if it is smaller than the smallest do nothing
                                 return;
                         }
