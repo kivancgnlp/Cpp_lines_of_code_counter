@@ -4,7 +4,11 @@ project(disk_usage_analyzer)
 set(CMAKE_CXX_STANDARD 20)
 
 add_executable(disk_usage_analyzer
-        src/main.cpp)
+        src/main.cpp
+        src/Stats.cpp
+        src/Stats.h
+        src/Utils.cpp
+        src/Utils.h)
 
 
 find_package(CLI11 CONFIG REQUIRED)
