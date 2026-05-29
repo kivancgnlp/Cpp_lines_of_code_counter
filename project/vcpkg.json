@@ -3,5 +3,5 @@
 {
   "dependencies": ["fmt", "spdlog","cpptrace","cli11"],
   "version": "1.0",
-  "name": "lines-of-code-counter"
+  "name": "kiv-disk-usage-analyzer"
 }

@@ -1,20 +1,20 @@
 cmake_minimum_required(VERSION 4.0)
-project(cpp_loc_counter)
+project(disk_usage_analyzer)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(cpp_loc_counter
+add_executable(disk_usage_analyzer
         src/main.cpp)
 
 
 find_package(CLI11 CONFIG REQUIRED)
-target_link_libraries(cpp_loc_counter PRIVATE CLI11::CLI11)
+target_link_libraries(disk_usage_analyzer PRIVATE CLI11::CLI11)
 
 find_package(cpptrace CONFIG REQUIRED)
-target_link_libraries(cpp_loc_counter PRIVATE cpptrace::cpptrace)
+target_link_libraries(disk_usage_analyzer PRIVATE cpptrace::cpptrace)
 
 find_package(fmt CONFIG REQUIRED)
-target_link_libraries(cpp_loc_counter PRIVATE fmt::fmt)
+target_link_libraries(disk_usage_analyzer PRIVATE fmt::fmt)
 
 find_package(spdlog CONFIG REQUIRED)
-target_link_libraries(cpp_loc_counter PRIVATE spdlog::spdlog)
+target_link_libraries(disk_usage_analyzer PRIVATE spdlog::spdlog)
