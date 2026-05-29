@@ -12,6 +12,18 @@
 #include <cpptrace/from_current.hpp>
 
 static std::optional<std::uintmax_t> get_file_size(const std::filesystem::path &path);
+std::string get_human_readable_size(std::uintmax_t size);
+
+struct Extension_Stat {
+        unsigned counter;
+        std::uintmax_t acc_size;
+
+        std::map<std::string, Extension_Stat>::mapped_type &operator+=(const Extension_Stat & second) {
+                counter += second.counter;
+                acc_size += second.acc_size;
+                return *this;
+        }
+};
 
 struct Stats {
         unsigned processed_files = 0;
@@ -21,23 +33,9 @@ struct Stats {
         unsigned file_get_size_error_count = 0;
         unsigned directory_info_get_error_count = 0;
 
-        std::map<std::string, unsigned> extension_stats;
-
-        std::string get_human_readable_size() const {
-                double size_float = total_size;
-                unsigned suffix = 0;
-
-                while (size_float > 1024) {
-                        size_float /= 1024;
-                        suffix++;
-                }
-
-                constexpr std::array<const char *, 4> prefix_str = {"bytes", "KB", "MB", "GB"};
-
-                return fmt::format("{:.2f} {}",size_float,prefix_str.at(suffix));
+        std::map<std::string, Extension_Stat> extension_stats;
 
 
-        }
 
         template <bool VERBOSE>
         std::string to_string() const {
@@ -47,9 +45,9 @@ struct Stats {
                         ss << "\n processed_files: " << processed_files
                            << "\n processed_folders: " << processed_folders
                            << "\n unclassified_entries: " << unclassified_entries
-                           << "\n size: " << get_human_readable_size();
+                           << "\n size: " << get_human_readable_size(total_size);
 
-                        std::vector<std::pair<std::string,unsigned>> sorted_ext_stats;
+                        std::vector<std::pair<std::string,Extension_Stat>> sorted_ext_stats;
 
                         sorted_ext_stats.reserve(extension_stats.size());
 
@@ -57,18 +55,18 @@ struct Stats {
                                 sorted_ext_stats.emplace_back(entry.first, entry.second);
                         }
 
-                        std::sort(sorted_ext_stats.begin(), sorted_ext_stats.end(),[](const std::pair<std::string,unsigned>& p1, const std::pair<std::string,unsigned>& p2) {
-                                return p1.second > p2.second;
+                        std::sort(sorted_ext_stats.begin(), sorted_ext_stats.end(),[](const std::pair<std::string,Extension_Stat>& p1, const std::pair<std::string,Extension_Stat>& p2) {
+                                return p1.second.acc_size > p2.second.acc_size;
                         });
 
                         ss << "\n File extension stats : \n",
-                        std::ranges::for_each(sorted_ext_stats, [&ss](const std::pair<std::string,unsigned>& p) {
-                                ss  << p.second << '\t' << p.first << '\n';
+                        std::ranges::for_each(sorted_ext_stats, [&ss](const std::pair<std::string,Extension_Stat>& p) {
+                                ss  << std::setw(12) <<p.first << "\t acc size : " << std::setw(12) << get_human_readable_size(p.second.acc_size) << "\t count : "<< p.second.counter << '\n';
                         });
 
 
                 }else {
-                        ss << "size : " << get_human_readable_size();
+                        ss << "size : " << get_human_readable_size(total_size);
 
                 }
 
@@ -96,8 +94,15 @@ struct Stats {
                 return *this;
         }
 
-        void update_extension_stats(const std::string& extension) {
-                extension_stats[extension]++;
+        void update_extension_stats(const std::string& extension, std::uintmax_t file_size) {
+
+                if ( auto ex = extension_stats.find(extension); ex != extension_stats.end()){
+                        ex->second.counter++;
+                        ex->second.acc_size += file_size;
+                }else {
+                        extension_stats.insert({extension, {1,file_size}});
+                }
+
         }
 };
 
@@ -105,7 +110,7 @@ void list_files_in_the_directory(const std::filesystem::path& path, Stats &stats
         spdlog::debug("Listing the files in the directory {}", path.string());
 
         std::error_code ec{};
-        auto dir_it = std::filesystem::directory_iterator(path,ec);
+        std::filesystem::directory_iterator dir_it = std::filesystem::directory_iterator(path,ec);
 
         if (ec) {
                 spdlog::warn("Error in listing the files in the directory {}, {}", path.string(),ec.message());
@@ -125,7 +130,7 @@ void list_files_in_the_directory(const std::filesystem::path& path, Stats &stats
                                 stats.total_size += size.value();
                                 stats.processed_files++;
                                 if (path.has_extension()) {
-                                        stats.update_extension_stats(path.extension().string());
+                                        stats.update_extension_stats(path.extension().string(), size.value());
                                 }
                         }else {
                                 stats.file_get_size_error_count++;
@@ -141,8 +146,17 @@ void list_files_in_the_directory(const std::filesystem::path& path, Stats &stats
                 }
 
 
+                {
+                        std::error_code ec{};
+                        dir_it.increment(ec);
 
-                ++dir_it;
+                        if (ec) {
+                                spdlog::warn("Could not process file : {}", path.string());
+                                break;
+                        }
+
+                }
+
         }
 
         if (current_depth == 1) {
@@ -189,4 +203,18 @@ static std::optional<std::uintmax_t> get_file_size(const std::filesystem::path &
         }else {
                 return size;
         }
+}
+
+std::string get_human_readable_size(std::uintmax_t size) {
+        double size_float = size;;
+        unsigned suffix = 0;
+
+        while (size_float > 1024) {
+                size_float /= 1024;
+                suffix++;
+        }
+
+        constexpr std::array<const char *, 4> prefix_str = {"bytes", "KB", "MB", "GB"};
+
+        return fmt::format("{:.2f} {}",size_float,prefix_str.at(suffix));
 }
