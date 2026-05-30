@@ -29,6 +29,36 @@ void Stats::migrate_stats(Stats &&from_stat) {
     from_stat.biggest_files.clear();
 }
 
+void Stats::update_biggest_files(std::string &&file_path, std::uintmax_t size) {
+
+    constexpr unsigned TOP_LIST_SIZE = 10;
+
+    if (biggest_files.size() == TOP_LIST_SIZE) {
+
+        if (biggest_files.back().second > size) {
+            // if it is smaller than the smallest do nothing
+            return;
+        }
+    }
+    biggest_files.emplace_back(std::move(file_path), size);
+
+    std::ranges::sort(biggest_files, [](const auto & a, const auto & b) {
+        return a.second > b.second;
+    });
+
+
+    while (biggest_files.size() > TOP_LIST_SIZE){
+        biggest_files.pop_back();
+    }
+
+}
+
+void Stats::add_file_size_stat(const std::filesystem::path &path, std::uintmax_t size) {
+    total_size += size;
+    processed_files++;
+    update_biggest_files(path.string(), size);
+}
+
 void Stats::update_extension_stats(const std::string &extension, std::uintmax_t file_size) {
 
     if (const auto ex = extension_stats.find(extension); ex != extension_stats.end()){

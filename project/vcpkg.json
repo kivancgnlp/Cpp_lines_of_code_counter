@@ -1,7 +1,7 @@
 
 
 {
-  "dependencies": ["fmt", "spdlog","cpptrace","cli11"],
+  "dependencies": ["fmt", "spdlog","cpptrace","cli11","gtest"],
   "version": "1.0",
   "name": "kiv-disk-usage-analyzer"
 }

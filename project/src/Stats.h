@@ -47,43 +47,21 @@ class Stats {
         //Stats &operator+=(const Stats & stats);
         void migrate_stats(Stats &&from_stat);
 
-        void update_biggest_files(std::string &&file_path,std::uintmax_t size) {
-
-                constexpr unsigned TOP_LIST_SIZE = 10;
-
-                if (biggest_files.size() == TOP_LIST_SIZE) {
-
-                        if (biggest_files.back().second > size) {
-                                // if it is smaller than the smallest do nothing
-                                return;
-                        }
-                }
-                biggest_files.emplace_back(std::move(file_path), size);
-
-                std::ranges::sort(biggest_files, [](const auto & a, const auto & b) {
-                        return a.second > b.second;
-                });
-
-
-                while (biggest_files.size() > TOP_LIST_SIZE){
-                        biggest_files.pop_back();
-                }
-
-        }
-
-
-        void add_file_size_stat(const std::filesystem::path &path, std::uintmax_t size) {
-                total_size += size;
-                processed_files++;
-                update_biggest_files(path.string(), size);
-        }
-
-
+        void update_biggest_files(std::string &&file_path,std::uintmax_t size);
+        void add_file_size_stat(const std::filesystem::path &path, std::uintmax_t size);
         void update_extension_stats(const std::string& extension, std::uintmax_t file_size);
         void increment_file_get_size_error_count();
         void increment_directory_info_error_count();
         void increment_processed_folder_count();
         void increment_unclassified_entries_count();
+
+        [[nodiscard]] unsigned get_processed_file_count() const {
+                return processed_files;
+        }
+
+        [[nodiscard]] unsigned get_processed_folder_count() const {
+                return processed_folders;
+        }
 };
 
 
