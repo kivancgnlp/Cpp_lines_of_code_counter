@@ -15,14 +15,14 @@
 #include "Stats.h"
 
 
-void list_files_in_the_directory(const std::filesystem::path& path, Stats &stats,Stats &global_stats, unsigned current_depth) {
-        spdlog::debug("Listing the files in the directory {}", path.string());
+void list_files_in_the_directory(const std::filesystem::path& path_base, Stats &stats,Stats &global_stats, unsigned current_depth) {
+        spdlog::debug("Listing the files in the directory {}", path_base.string());
 
         std::error_code ec{};
-        std::filesystem::directory_iterator dir_it = std::filesystem::directory_iterator(path,ec);
+        std::filesystem::directory_iterator dir_it = std::filesystem::directory_iterator(path_base,ec);
 
         if (ec) {
-                spdlog::warn("Error in listing the files in the directory {}, {}", path.string(),ec.message());
+                spdlog::warn("Error in listing the files in the directory {}, {}", path_base.string(),ec.message());
                 stats.increment_directory_info_error_count();
                 return;
         }
@@ -30,29 +30,40 @@ void list_files_in_the_directory(const std::filesystem::path& path, Stats &stats
         const std::filesystem::directory_iterator end{};
 
         while (dir_it != end) {
-                const std::filesystem::path &path = dir_it->path();
+                const std::filesystem::path &path_entry = dir_it->path();
 
-                if (is_regular_file(path)) {
-                        spdlog::log(spdlog::level::debug,"Processing file : {}", path.string());
+                if (std::filesystem::is_symlink(path_entry)) {
+                        spdlog::info("skipping symlink {}", path_entry.string());
 
-                        if (std::optional<std::uintmax_t> size = get_file_size(path)) {
-                                stats.add_file_size_stat(path,size.value());
+                }else  if (is_regular_file(path_entry)) {
+                        spdlog::log(spdlog::level::debug,"Processing file : {}", path_entry.string());
 
-                                if (path.has_extension()) {
-                                        stats.update_extension_stats(path.extension().string(), size.value());
+                        Stats &current_stats = current_depth == 0 ? global_stats : stats;
+
+                        if (std::optional<std::uintmax_t> size = get_file_size(path_entry)) {
+
+                                current_stats.add_file_size_stat(path_entry,size.value());
+
+                                if (path_entry.has_extension()) {
+                                        current_stats.update_extension_stats(path_entry.extension().string(), size.value());
                                 }
                         }else {
-                                stats.increment_file_get_size_error_count();
+                                current_stats.increment_file_get_size_error_count();
 
                         }
 
-                }else if (is_directory(path)) {
-                        spdlog::debug("Processing directory : {}", path.string());
-                        list_files_in_the_directory(path, stats,global_stats, current_depth + 1);
+                }else if (is_directory(path_entry)) {
+                        spdlog::debug("Processing directory : {}", path_entry.string());
+                        list_files_in_the_directory(path_entry, stats,global_stats, current_depth + 1);
                         stats.increment_processed_folder_count();
 
+                        if (current_depth == 1) {
+                                spdlog::info("Processing completed for folder : {}, folder stats : {}", path_base.string(), stats.to_string<false>());
+                                global_stats.migrate_stats(std::move(stats));
+                        }
+
                 }else {
-                        spdlog::warn("Unknown entry : {}", path.string());
+                        spdlog::warn("Unknown entry : {}", path_entry.string());
                         stats.increment_unclassified_entries_count();
 
                 }
@@ -63,18 +74,12 @@ void list_files_in_the_directory(const std::filesystem::path& path, Stats &stats
                         dir_it.increment(ec);
 
                         if (ec) {
-                                spdlog::warn("Could not process file : {}", path.string());
+                                spdlog::warn("Could not process file : {}", path_entry.string());
                                 break;
                         }
 
                 }
 
-        }
-
-        if (current_depth == 1) {
-                spdlog::info("Processing completed for folder : {}, folder stats : {}", path.string(), stats.to_string<false>());
-                global_stats += stats;
-                stats = Stats{};
         }
 
 
@@ -85,7 +90,7 @@ int main(int argc, const char * argv[]) {
         CLI::App app{"Kiv disk usage analyzer"};
 
         std::string path_str = ".";
-        CLI::Option *opt = app.add_option("-p,--path,path", path_str, "Path to files");
+        app.add_option("-p,--path,path", path_str, "Path to files");
         CLI11_PARSE(app, argc, argv);
         spdlog::info("Calculating disk usage starting with base folder {}", path_str);
 

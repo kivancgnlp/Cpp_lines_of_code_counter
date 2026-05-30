@@ -22,12 +22,14 @@ std::string get_human_readable_size(std::uintmax_t size) {
     double size_float = size;;
     unsigned suffix = 0;
 
-    while (size_float > 1024) {
+    constexpr std::array<const char *, 5> prefix_str = {"bytes", "KB", "MB", "GB","TB"};
+
+    while (size_float > 1024 && suffix < prefix_str.size()) {
         size_float /= 1024;
         suffix++;
     }
 
-    constexpr std::array<const char *, 4> prefix_str = {"bytes", "KB", "MB", "GB"};
+
 
     return fmt::format("{:.2f} {}",size_float,prefix_str.at(suffix));
 }

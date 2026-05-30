@@ -44,9 +44,10 @@ class Stats {
         template <bool VERBOSE>
         std::string to_string() const;
 
-        Stats &operator+=(const Stats & stats);
+        //Stats &operator+=(const Stats & stats);
+        void migrate_stats(Stats &&from_stat);
 
-        void update_biggest_files(const std::filesystem::path& file_path,std::uintmax_t size) {
+        void update_biggest_files(std::string &&file_path,std::uintmax_t size) {
 
                 constexpr unsigned TOP_LIST_SIZE = 10;
 
@@ -57,13 +58,14 @@ class Stats {
                                 return;
                         }
                 }
-                biggest_files.emplace_back(file_path.string(), size);
+                biggest_files.emplace_back(std::move(file_path), size);
 
                 std::ranges::sort(biggest_files, [](const auto & a, const auto & b) {
                         return a.second > b.second;
                 });
 
-                if (biggest_files.size() > TOP_LIST_SIZE){
+
+                while (biggest_files.size() > TOP_LIST_SIZE){
                         biggest_files.pop_back();
                 }
 
@@ -73,7 +75,7 @@ class Stats {
         void add_file_size_stat(const std::filesystem::path &path, std::uintmax_t size) {
                 total_size += size;
                 processed_files++;
-                update_biggest_files(path, size);
+                update_biggest_files(path.string(), size);
         }
 
 

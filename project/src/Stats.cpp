@@ -4,25 +4,34 @@
 
 #include "Stats.h"
 
-Stats & Stats::operator+=(const Stats &stats) {
-    processed_files += stats.processed_files;
-    processed_folders += stats.processed_folders;
-    unclassified_entries += stats.unclassified_entries;
-    total_size += stats.total_size;
 
-    for (const auto & entry : stats.extension_stats) {
-        extension_stats[entry.first] += entry.second;
+
+void Stats::migrate_stats(Stats &&from_stat) {
+    processed_files += from_stat.processed_files;from_stat.processed_files = 0;
+    processed_folders += from_stat.processed_folders;from_stat.processed_folders = 0;
+    unclassified_entries += from_stat.unclassified_entries;from_stat.unclassified_entries = 0;
+
+    total_size += from_stat.total_size; from_stat.total_size = 0;
+    file_get_size_error_count += from_stat.file_get_size_error_count; from_stat.file_get_size_error_count = 0;
+    directory_info_get_error_count += from_stat.directory_info_get_error_count; from_stat.directory_info_get_error_count = 0;
+
+
+    for (auto& [ext, stat] : from_stat.extension_stats) {
+        extension_stats[ext] += stat;     // operator[] default-constructs, then += accumulates
     }
 
-    for (const auto & entry : stats.biggest_files) {
-       add_file_size_stat(entry.first, entry.second);
+    from_stat.extension_stats.clear();
+
+    for (auto & entry : from_stat.biggest_files) {
+        update_biggest_files(std::move(entry.first),entry.second);
     }
-    return *this;
+
+    from_stat.biggest_files.clear();
 }
 
 void Stats::update_extension_stats(const std::string &extension, std::uintmax_t file_size) {
 
-    if ( auto ex = extension_stats.find(extension); ex != extension_stats.end()){
+    if (const auto ex = extension_stats.find(extension); ex != extension_stats.end()){
         ex->second.counter++;
         ex->second.acc_size += file_size;
     }else {
