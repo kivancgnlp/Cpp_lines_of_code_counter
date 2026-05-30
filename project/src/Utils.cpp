@@ -19,12 +19,12 @@ std::optional<std::uintmax_t> get_file_size(const std::filesystem::path &path) {
 }
 
 std::string get_human_readable_size(std::uintmax_t size) {
-    double size_float = size;;
+    double size_float = size;
     unsigned suffix = 0;
 
     constexpr std::array<const char *, 5> prefix_str = {"bytes", "KB", "MB", "GB","TB"};
 
-    while (size_float > 1024 && suffix < prefix_str.size()) {
+    while (size_float >= 1024 && suffix + 1 < prefix_str.size()) {
         size_float /= 1024;
         suffix++;
     }

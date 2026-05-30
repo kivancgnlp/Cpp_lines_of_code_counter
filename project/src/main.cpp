@@ -55,12 +55,11 @@ void list_files_in_the_directory(const std::filesystem::path& path_base, Stats &
                 }else if (is_directory(path_entry)) {
                         spdlog::debug("Processing directory : {}", path_entry.string());
                         list_files_in_the_directory(path_entry, stats,global_stats, current_depth + 1);
-                        stats.increment_processed_folder_count();
 
-                        if (current_depth == 1) {
-                                spdlog::info("Processing completed for folder : {}, folder stats : {}", path_base.string(), stats.to_string<false>());
-                                global_stats.migrate_stats(std::move(stats));
-                        }
+                        // Top-level folders (encountered at depth 0) belong to global directly;
+                        // nested folders accumulate in stats and ride the end-of-frame migrate.
+                        Stats &folder_count_target = current_depth == 0 ? global_stats : stats;
+                        folder_count_target.increment_processed_folder_count();
 
                 }else {
                         spdlog::warn("Unknown entry : {}", path_entry.string());
@@ -82,6 +81,15 @@ void list_files_in_the_directory(const std::filesystem::path& path_base, Stats &
 
         }
 
+        // Flush a completed top-level folder's subtree into global exactly once,
+        // after the whole directory has been walked. Doing this at end-of-frame
+        // (rather than mid-loop when a child dir is seen) ensures files that
+        // appear after a subdirectory, and folders with no subdirectory at all,
+        // are never stranded.
+        if (current_depth == 1) {
+                spdlog::info("Processing completed for folder : {}, folder stats : {}", path_base.string(), stats.to_string<false>());
+                global_stats.migrate_stats(std::move(stats));
+        }
 
 }
 
